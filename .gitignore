@@ -1,0 +1,6 @@
+.DS_Store
+build
+dist
+nbproject/Makefile-*
+nbproject/Package-*
+nbproject/private
