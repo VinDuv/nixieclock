@@ -4,3 +4,5 @@ dist
 nbproject/Makefile-*
 nbproject/Package-*
 nbproject/private
+tests/*.o
+tests/test_datetime
