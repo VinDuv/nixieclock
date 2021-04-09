@@ -7,7 +7,11 @@
 
 #include "configbits.h"
 
+#include "datetime.h"
+#include "settings.h"
+
 #include <xc.h>
+#include <stdbool.h>
 
 // I/O register allocation:
 // A<0..3>  O   Minutes (ones digit)
@@ -43,13 +47,23 @@ static enum {
     STATUS_NO_SIGNAL = 3,   // No GPS signal
 } gps_status = STATUS_NO_SIGNAL;
 
+// Ticks counter
+#define TICKS_PER_DAY 911336
+static uint16_t cur_days = 0;
+static uint32_t cur_ticks = 0;
+static bool tick_happened = 0;
+
 static void setup(void);
+static bool check_tick(void);
+
 
 void main(void)
 {
     setup();
 
-    while (1);
+    for (;;) {
+        check_tick();
+    }
 }
 
 
@@ -69,14 +83,50 @@ void __interrupt(high_priority) handle_int(void)
             blink_count = 0;
         }
 
+        // Increment tick counter
+        cur_ticks += 1;
+        if (cur_ticks == TICKS_PER_DAY) {
+            cur_days += 1;
+            cur_ticks = 0;
+        }
+        tick_happened = true;
+
         // Acknowledge the interrupt
         INTCONbits.T0IF = 0;
     }
 }
 
+// Check if a tick interrupt happened. Also updates the local time if needed.
+static bool check_tick(void)
+{
+    // Disable interrupts in the critical section
+    INTCONbits.GIEH = 0; // FIXME: Only disable Timer0 interrupt?
+
+    if (!tick_happened) {
+        INTCONbits.GIEH = 1;
+
+        return false;
+    }
+
+    // Convert ticks to days and seconds
+    uint16_t local_days = cur_days;
+    uint32_t local_secs = (uint32_t)((uint64_t)cur_ticks * 86400
+        / TICKS_PER_DAY);
+
+    tick_happened = false;
+
+    INTCONbits.GIEH = 1;
+
+    recalc_local_time(local_days, local_secs);
+
+    return true;
+}
+
 // Setup function
 static void setup(void)
 {
+    // Low-level setup
+
     // Disable interrupts during setup
     INTCON = 0b00000000;
 
@@ -101,4 +151,17 @@ static void setup(void)
     INTCONbits.T0IF = 0;    // Acknowledge any existing Timer0 interrupt
 
     INTCONbits.GIEH = 1;    // Enable general interrupts
+
+    // Date/time setup
+    utc_offset_secs = UTC_OFFSET_SECS;
+
+    dst_start.month = DST_START_MONTH;
+    dst_start.week = DST_START_WEEK;
+    dst_start.day = DST_START_DAY;
+    dst_start.hour = DST_START_HOUR;
+
+    dst_end.month = DST_END_MONTH;
+    dst_end.week = DST_END_WEEK;
+    dst_end.day = DST_END_DAY;
+    dst_end.hour = DST_END_HOUR;
 }

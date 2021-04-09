@@ -30,3 +30,5 @@ of the “K1” text).
 
 Click Make and program device in MPLAB X IDE. (If the clock is not powered, you
 may need to change the programmer’s settings to enable its +5V output).
+
+To change the DST settings, edit the settings.h file.
