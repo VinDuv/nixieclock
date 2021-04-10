@@ -96,6 +96,7 @@ void __interrupt(high_priority) handle_int(void)
     }
 }
 
+
 // Check if a tick interrupt happened. Also updates the local time if needed.
 static bool check_tick(void)
 {
@@ -121,6 +122,7 @@ static bool check_tick(void)
 
     return true;
 }
+
 
 // Setup function
 static void setup(void)
