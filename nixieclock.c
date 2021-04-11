@@ -53,16 +53,48 @@ static uint16_t cur_days = 0;
 static uint32_t cur_ticks = 0;
 static bool tick_happened = 0;
 
+// Displayed value (after update)
+#define BLANK ((uint8_t)0xff)
+static struct {
+    bool left_sep : 1; // Left separator
+    bool right_sep : 1; // Right separator
+    uint8_t digit0 : 2; // Hours tens, 0-2, 3 = blank
+    uint8_t digit1 : 4; // Hours ones, 0-9, 15 = blank
+    uint8_t digit2 : 4; // Minutes tens, 0-7, never blank
+    uint8_t digit3 : 4; // Minutes ones, 0-9, 15 = blank
+    uint8_t digit4 : 4; // Seconds tens, 0-7, never blank
+    uint8_t digit5 : 4; // Seconds ones, 0-9, 15 = blank
+} disp_value;
+
 static void setup(void);
 static bool check_tick(void);
+static void delay(uint8_t ticks);
+static void update_display(void);
+static void disp_cur_time(void);
 
 
 void main(void)
 {
     setup();
 
+    for (uint8_t i = 0 ; i < 10 ; i += 1) {
+        disp_value.left_sep = i & 1;
+        disp_value.right_sep = i & 1;
+        disp_value.digit0 = i;
+        disp_value.digit1 = i;
+        disp_value.digit2 = i;
+        disp_value.digit3 = i;
+        disp_value.digit4 = i;
+        disp_value.digit5 = i;
+
+        update_display();
+        delay(10);
+    }
+
     for (;;) {
-        check_tick();
+        if (check_tick()) {
+            disp_cur_time();
+        }
     }
 }
 
@@ -166,4 +198,60 @@ static void setup(void)
     dst_end.week = DST_END_WEEK;
     dst_end.day = DST_END_DAY;
     dst_end.hour = DST_END_HOUR;
+}
+
+
+// Wait a certain number of ticks, while updating the local time.
+static void delay(uint8_t ticks)
+{
+    while (ticks > 0) {
+        if (check_tick()) {
+            ticks -= 1;
+        }
+    }
+}
+
+// Update the display depending on the disp_value variable
+static void update_display(void)
+{
+    // Bits to enable on port B to get the correct hour tens
+    static const uint8_t hour_tens_match[4] = {
+        0b01000000, // 0 displayed
+        0b00010000, // 1 displayed
+        0b00100000, // 2 displayed
+        0b00000000, // Blank
+    };
+
+    // Port A: ----XXXX XXXX = minutes ones
+    LATA = (LATA & 0b11110000) | (disp_value.digit3 & 0b00001111);
+
+    // Port B: -021XXXX 0/1/2 hour tens (0 or 1 of them), XXXX = hours ones
+    LATB = (LATB & 0b10000000) |
+            (hour_tens_match[disp_value.digit0]) |
+            (disp_value.digit1 & 0b00001111);
+
+    // Port C: --S--XXX S = left separator, XXX = minutes tens
+    LATC = (LATC & 0b11011000) | (disp_value.left_sep ? 0b00100000 : 0) |
+            (disp_value.digit2 & 0b00000111);
+
+    // Port D: SXXXYYYY S = right separator, XXX = sec. tens, YYYY = sec. ones
+    LATD = (disp_value.right_sep ? 0b10000000 : 0) |
+            ((disp_value.digit4 << 4U) & 0b01110000) |
+            (disp_value.digit5 & 0b00001111);
+}
+
+
+// Display the current time.
+static void disp_cur_time(void)
+{
+    disp_value.left_sep = disp_value.right_sep = local_time.second & 1;
+
+    disp_value.digit0 = local_time.hour / 10;
+    disp_value.digit1 = local_time.hour % 10;
+    disp_value.digit2 = local_time.minute / 10;
+    disp_value.digit3 = local_time.minute % 10;
+    disp_value.digit4 = local_time.second / 10;
+    disp_value.digit5 = local_time.second % 10;
+
+    update_display();
 }
