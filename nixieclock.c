@@ -5,13 +5,14 @@
 // Set the DEBUG macro in the project settings to enable debug and disable
 // the watchdog.
 
-#include "configbits.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <xc.h>
 
+#include "configbits.h"
 #include "datetime.h"
 #include "settings.h"
 
-#include <xc.h>
-#include <stdbool.h>
 
 // I/O register allocation:
 // A<0..3>  O   Minutes (ones digit)
