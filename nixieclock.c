@@ -103,18 +103,13 @@ void main(void)
 // High priority interrupt handler
 void __interrupt(high_priority) handle_int(void)
 {
-    static uint8_t blink_count = 0;
-
     if (INTCONbits.T0IF) {
         // Timer0 interrupt
 
-        // Handle the LED blinking
+        // Blink the status LED to indicate the GPS status
+        uint8_t blink_count = cur_ticks & 0x1f;
         STATUS_LED = (((blink_count & 0b11) == 0) &&
                 (blink_count >> 2) < gps_status);
-
-        if ((++blink_count) == 20) {
-            blink_count = 0;
-        }
 
         // Increment tick counter
         cur_ticks += 1;
