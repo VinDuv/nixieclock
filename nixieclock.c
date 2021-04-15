@@ -11,6 +11,7 @@
 
 #include "configbits.h"
 #include "datetime.h"
+#include "gps.h"
 #include "settings.h"
 
 
@@ -39,14 +40,6 @@
 
 #define STATUS_LED LATAbits.LA5
 #define SWITCH PORTCbits.RC3
-
-// GPS sync status (indicated on the status LED)
-static enum {
-    STATUS_OK = 0,          // GPS is synchronized
-    STATUS_NO_DATA = 1,     // No data received from GPS in the last 30 seconds
-    STATUS_BAD_DATA = 2,    // CRC error in data received from GPS
-    STATUS_NO_SIGNAL = 3,   // No GPS signal
-} gps_status = STATUS_NO_SIGNAL;
 
 // Ticks counter
 #define TICKS_PER_DAY 911336
@@ -122,6 +115,11 @@ void __interrupt(high_priority) handle_int(void)
         // Acknowledge the interrupt
         INTCONbits.T0IF = 0;
     }
+
+    if (PIR1bits.RCIF) {
+        // Receive interrupt
+        gps_handle_serial_rx();
+    }
 }
 
 
@@ -170,8 +168,18 @@ static void setup(void)
     // Pin configuration (input/output)
     TRISA = 0b11000000;
     TRISB = 0b00000000;
-    TRISC = 0b10011000;
+    TRISC = 0b11011000; // Serial TX and RX need to be set to 1
     TRISD = 0b00000000;
+
+    // Serial port and interrupt configuration
+    RCSTA = 0b10000000; // Serial port enabled, 8-bit, RX disabled (for now)
+    TXSTA = 0b00100000; // 8-bit, TX enabled, async, low speed
+    BAUDCON = 0b00000000; // Default baud rate control
+    SPBRGH = 0;
+    SPBRG = 71; // Base frequency / (64 * (71 + 1)) = 4800 baud
+
+    IPR1 = 0b00100000; // Serial RX is high priority
+    PIE1 = 0b00100000; // Serial RX interrupt enabled
 
     // Timer and interrupt configuration
     T0CON = 0b10000010; // Timer0 enabled, 1:8 pre-scaler used
@@ -180,6 +188,7 @@ static void setup(void)
     INTCON2bits.TMR0IP = 1; // The Timer0 overflow interrupt is high priority
     INTCONbits.T0IF = 0;    // Acknowledge any existing Timer0 interrupt
 
+    INTCONbits.PEIE = 1;    // Enable peripheral interrupts
     INTCONbits.GIEH = 1;    // Enable general interrupts
 
     // Date/time setup
@@ -194,6 +203,12 @@ static void setup(void)
     dst_end.week = DST_END_WEEK;
     dst_end.day = DST_END_DAY;
     dst_end.hour = DST_END_HOUR;
+
+    // GPS setup
+    gps_init();
+
+    // Enable serial reception (should be done only after enabling interrupts)
+    RCSTAbits.CREN = 1;
 }
 
 
@@ -206,6 +221,7 @@ static void delay(uint8_t ticks)
         }
     }
 }
+
 
 // Update the display depending on the disp_value variable
 static void update_display(void)
