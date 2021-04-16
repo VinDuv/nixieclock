@@ -4,6 +4,8 @@
 #ifndef GPS_H
 #define GPS_H
 
+#include <stdbool.h>
+
 // GPS sync status
 enum gps_status_val {
     STATUS_OK = 0,              // GPS is synchronized
@@ -19,7 +21,9 @@ extern enum gps_status_val gps_status;
 // Initialize the GPS module by setting the message rates
 void gps_init(void);
 
-// Handle serial reception interrupt
-void gps_handle_serial_rx(void);
+// Handle serial reception interrupt. Return true if a message is received.
+bool gps_handle_serial_rx(void);
 
+// Process the received message.
+void gps_process_received(void);
 #endif

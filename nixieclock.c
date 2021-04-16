@@ -60,6 +60,9 @@ static struct {
     uint8_t digit5 : 4; // Seconds ones, 0-9, 15 = blank
 } disp_value;
 
+// Track GPS processing
+static bool gps_proc_required = false;
+
 static void setup(void);
 static bool check_tick(void);
 static void delay(uint8_t ticks);
@@ -118,21 +121,34 @@ void __interrupt(high_priority) handle_int(void)
 
     if (PIR1bits.RCIF) {
         // Receive interrupt
-        gps_handle_serial_rx();
+        gps_proc_required = gps_handle_serial_rx();
     }
 }
 
 
-// Check if a tick interrupt happened. Also updates the local time if needed.
+// Check if a tick interrupt happened. Also updates the local time and
+// perform GPS message processing if needed.
 static bool check_tick(void)
 {
+    bool process_gps;
+
     // Disable interrupts in the critical section
     INTCONbits.GIEH = 0; // FIXME: Only disable Timer0 interrupt?
 
+    process_gps = gps_proc_required;
+    gps_proc_required = false;
     if (!tick_happened) {
         INTCONbits.GIEH = 1;
 
+        if (process_gps) {
+            gps_process_received();
+        }
+
         return false;
+    }
+
+    if (process_gps) {
+        gps_process_received();
     }
 
     // Convert ticks to days and seconds
