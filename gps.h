@@ -18,8 +18,13 @@ enum gps_status_val {
 };
 extern enum gps_status_val gps_status;
 
-// Initialize the GPS module by setting the message rates
-void gps_init(void);
+// Reset the GPS to a known state where no messages are sent; must be called
+// a little bit before enabling serial reception
+void gps_init_reset(void);
+
+// Enable the sending of clock messages from the GPS; the GPS must be reset
+// and the serial reception must be enabled beforehand
+void gps_init_setup(void);
 
 // Handle serial reception interrupt. Return true if a message is received.
 bool gps_handle_serial_rx(void);

@@ -221,10 +221,15 @@ static void setup(void)
     dst_end.hour = DST_END_HOUR;
 
     // GPS setup
-    gps_init();
+    gps_init_reset();
+
+    // Wait for the GPS to stop sending messages on the serial
+    delay(2);
 
     // Enable serial reception (should be done only after enabling interrupts)
     RCSTAbits.CREN = 1;
+
+    gps_init_setup();
 }
 
 

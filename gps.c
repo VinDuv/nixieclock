@@ -31,28 +31,47 @@ volatile enum {
     RECEIVE_DONE,
 } recv_state;
 
-// GPS initialization string
-static const char* gps_init_seq = (
+// GPS initialization reset string
+static const char* gps_reset_seq = (
     // Switch to binary protocol
     "$PSRF100,0,4800,8,1,0*0F\r\n"
     // Disable all messages
     "\xa0\xa2\x00\x08\xa6\x02\x00\x00\x00\x00\x00\x00\x00\xa8\xb0\xb3"
+    // End marker
+    "\xff"
+);
+
+// GPS initialization setup string
+static const char* gps_setup_seq = (
     // Enable message 7 every 10 seconds
     "\xa0\xa2\x00\x08\xa6\x00\x07\x0a\x00\x00\x00\x00\x00\xb7\xb0\xb3"
     // End marker
     "\xff"
 );
 
+static void gps_send_seq(const char* seq);
 
-void gps_init(void)
+
+void gps_init_reset(void)
 {
     gps_status = STATUS_UNSYNC;
     recv_state = RECEIVED_NOTHING;
 
-    const char* ptr;
-    for (ptr = gps_init_seq ; *ptr != '\xff' ; ptr += 1) {
+    gps_send_seq(gps_reset_seq);
+}
+
+
+void gps_init_setup(void)
+{
+    gps_send_seq(gps_setup_seq);
+}
+
+
+static void gps_send_seq(const char* seq)
+{
+    for (; *seq != '\xff' ; seq += 1) {
         while (TXSTAbits.TRMT == 0); // Wait for previous character to be sent
-        TXREG = *ptr;
+        TXREG = *seq;
     }
 }
 
