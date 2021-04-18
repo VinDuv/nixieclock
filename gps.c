@@ -8,6 +8,9 @@
 #include <stdbool.h>
 #include <xc.h>
 
+// Uncomment to help debugging GPS errors
+//#define GPS_HALT_ON_ERRORS
+
 // Definition of extern variables
 enum gps_status_val gps_status;
 
@@ -51,6 +54,11 @@ static const char* gps_setup_seq = (
 
 static void gps_send_seq(const char* seq);
 
+#ifdef GPS_HALT_ON_ERRORS
+#define GPS_SET_ERR(error) do { gps_status = error; for (;;) {} } while(0)
+#else
+#define GPS_SET_ERR(error) do { gps_status = error; } while(0)
+#endif
 
 void gps_init_reset(void)
 {
@@ -67,6 +75,7 @@ void gps_init_setup(void)
 }
 
 
+// Send a control message to the GPS
 static void gps_send_seq(const char* seq)
 {
     for (; *seq != '\xff' ; seq += 1) {
@@ -86,7 +95,7 @@ bool gps_handle_serial_rx(void)
     }
 
     if (RCSTAbits.FERR || RCSTAbits.OERR) {
-        gps_status = STATUS_ERR_SERIAL;
+        GPS_SET_ERR(STATUS_ERR_SERIAL);
         return false;
     }
 
@@ -95,21 +104,21 @@ bool gps_handle_serial_rx(void)
             if (recv_byte == '\xA0') { // First start byte
                 recv_state = RECEIVING_START;
             } else {
-                gps_status = STATUS_ERR_INVALID_MSG;
+                GPS_SET_ERR(STATUS_ERR_INVALID_MSG);
             }
         break;
         case RECEIVING_START:
             if (recv_byte == '\xA2') { // Second start byte
                 recv_state = RECEIVING_LENGTH1;
             } else {
-                gps_status = STATUS_ERR_INVALID_MSG;
+                GPS_SET_ERR(STATUS_ERR_INVALID_MSG);
             }
         break;
         case RECEIVING_LENGTH1:
             if (recv_byte == 0) { // Length should be < 256 so high byte = 0
                 recv_state = RECEIVING_LENGTH2;
             } else {
-                gps_status = STATUS_ERR_INVALID_MSG;
+                GPS_SET_ERR(STATUS_ERR_INVALID_MSG);
             }
         break;
         case RECEIVING_LENGTH2:
@@ -119,7 +128,7 @@ bool gps_handle_serial_rx(void)
                 calc_csum = 0;
                 recv_state = RECEIVING_PAYLOAD;
             } else {
-                gps_status = STATUS_ERR_INVALID_MSG;
+                GPS_SET_ERR(STATUS_ERR_INVALID_MSG);
             }
         break;
         case RECEIVING_PAYLOAD:
@@ -135,21 +144,21 @@ bool gps_handle_serial_rx(void)
             if (recv_byte == ((calc_csum >> 8) & 0x7F)) {
                 recv_state = RECEIVING_CSUM2;
             } else {
-                gps_status = STATUS_ERR_CORRUPT_MSG;
+                GPS_SET_ERR(STATUS_ERR_CORRUPT_MSG);
             }
         break;
         case RECEIVING_CSUM2:
             if (recv_byte == (calc_csum & 0xFF)) {
                 recv_state = RECEIVING_END1;
             } else {
-                gps_status = STATUS_ERR_CORRUPT_MSG;
+                GPS_SET_ERR(STATUS_ERR_CORRUPT_MSG);
             }
         break;
         case RECEIVING_END1:
             if (recv_byte == '\xb0') { // First end byte
                 recv_state = RECEIVING_END2;
             } else {
-                gps_status = STATUS_ERR_INVALID_MSG;
+                GPS_SET_ERR(STATUS_ERR_INVALID_MSG);
             }
         break;
         case RECEIVING_END2:
@@ -157,11 +166,11 @@ bool gps_handle_serial_rx(void)
                 recv_state = RECEIVE_DONE;
                 return true;
             } else {
-                gps_status = STATUS_ERR_INVALID_MSG;
+                GPS_SET_ERR(STATUS_ERR_INVALID_MSG);
             }
         break;
         case RECEIVE_DONE:
-            gps_status = STATUS_ERR_OVERFLOW;
+            GPS_SET_ERR(STATUS_ERR_OVERFLOW);
         break;
     }
 
@@ -185,7 +194,7 @@ void gps_process_received(void)
     if (payload_buf[0] != 7) {
         // Unexpected message
 
-        gps_status = STATUS_ERR_INVALID_MSG;
+        GPS_SET_ERR(STATUS_ERR_INVALID_MSG);
         return;
     }
 
