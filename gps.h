@@ -18,9 +18,13 @@ enum gps_status_val {
 };
 extern enum gps_status_val gps_status;
 
-// Reset the GPS to a known state where no messages are sent; must be called
+// First step of the GPS reset sequence; must be called a little bit before the
+// second reset step
+void gps_init_reset1(void);
+
+// Second step of the GPS reset sequence; must be called
 // a little bit before enabling serial reception
-void gps_init_reset(void);
+void gps_init_reset2(void);
 
 // Enable the sending of clock messages from the GPS; the GPS must be reset
 // and the serial reception must be enabled beforehand

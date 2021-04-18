@@ -64,6 +64,7 @@ static struct {
 static bool gps_proc_required = false;
 
 static void setup(void);
+static void gps_setup(void);
 static bool check_tick(void);
 static void delay(uint8_t ticks);
 static void update_display(void);
@@ -73,6 +74,19 @@ static void disp_cur_time(void);
 void main(void)
 {
     setup();
+
+    disp_value.left_sep = 0;
+    disp_value.right_sep = 0;
+    disp_value.digit0 = 0;
+    disp_value.digit1 = 1;
+    disp_value.digit2 = 2;
+    disp_value.digit3 = 3;
+    disp_value.digit4 = 4;
+    disp_value.digit5 = 5;
+
+    update_display();
+
+    gps_setup();
 
     for (uint8_t i = 0 ; i < 10 ; i += 1) {
         disp_value.left_sep = i & 1;
@@ -166,7 +180,7 @@ static bool check_tick(void)
 }
 
 
-// Setup function
+// Low-level setup function
 static void setup(void)
 {
     // Low-level setup
@@ -219,14 +233,24 @@ static void setup(void)
     dst_end.week = DST_END_WEEK;
     dst_end.day = DST_END_DAY;
     dst_end.hour = DST_END_HOUR;
+}
 
-    // GPS setup
-    gps_init_reset();
 
-    // Wait for the GPS to stop sending messages on the serial
+// GPS setup process (interrupts should be enabled))
+static void gps_setup(void)
+{
+    // Reset the GPS to a known state
+    gps_init_reset1();
+
+    // Wait between sent messages
     delay(2);
 
-    // Enable serial reception (should be done only after enabling interrupts)
+    gps_init_reset2();
+
+    // Wait for received messages to stop
+    delay(2);
+
+    // Enable serial reception
     RCSTAbits.CREN = 1;
 
     gps_init_setup();

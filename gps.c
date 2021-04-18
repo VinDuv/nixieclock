@@ -34,23 +34,18 @@ volatile enum {
     RECEIVE_DONE,
 } recv_state;
 
-// GPS initialization reset string
-static const char* gps_reset_seq = (
-    // Switch to binary protocol
-    "$PSRF100,0,4800,8,1,0*0F\r\n"
-    // Disable all messages
-    "\xa0\xa2\x00\x08\xa6\x02\x00\x00\x00\x00\x00\x00\x00\xa8\xb0\xb3"
-    // End marker
-    "\xff"
-);
+// GPS control messages:
 
-// GPS initialization setup string
-static const char* gps_setup_seq = (
-    // Enable message 7 every 10 seconds
-    "\xa0\xa2\x00\x08\xa6\x00\x07\x0a\x00\x00\x00\x00\x00\xb7\xb0\xb3"
-    // End marker
-    "\xff"
-);
+// Switch to binary mode
+static const char* gps_switch_to_bin = "$PSRF100,0,4800,8,1,0*0F\r\n\xff";
+
+// Disable all messages
+static const char* gps_disable_all_msgs =
+    "\xa0\xa2\x00\x08\xa6\x02\x00\x00\x00\x00\x00\x00\x00\xa8\xb0\xb3\xff";
+
+// Enable clock message (message 7) every 10 seconds
+static const char* gps_enable_clock_msg =
+    "\xa0\xa2\x00\x08\xa6\x00\x07\x0a\x00\x00\x00\x00\x00\xb7\xb0\xb3\xff";
 
 static void gps_send_seq(const char* seq);
 
@@ -60,18 +55,24 @@ static void gps_send_seq(const char* seq);
 #define GPS_SET_ERR(error) do { gps_status = error; } while(0)
 #endif
 
-void gps_init_reset(void)
+void gps_init_reset1(void)
 {
     gps_status = STATUS_UNSYNC;
     recv_state = RECEIVED_NOTHING;
 
-    gps_send_seq(gps_reset_seq);
+    gps_send_seq(gps_switch_to_bin);
+}
+
+
+void gps_init_reset2(void)
+{
+    gps_send_seq(gps_disable_all_msgs);
 }
 
 
 void gps_init_setup(void)
 {
-    gps_send_seq(gps_setup_seq);
+    gps_send_seq(gps_enable_clock_msg);
 }
 
 
