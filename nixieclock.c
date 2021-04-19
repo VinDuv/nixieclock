@@ -64,7 +64,6 @@ static struct {
 static bool gps_proc_required = false;
 
 static void setup(void);
-static void gps_setup(void);
 static bool check_tick(void);
 static void delay(uint8_t ticks);
 static void update_display(void);
@@ -86,7 +85,7 @@ void main(void)
 
     update_display();
 
-    gps_setup();
+    gps_init();
 
     for (uint8_t i = 0 ; i < 10 ; i += 1) {
         disp_value.left_sep = i & 1;
@@ -133,7 +132,7 @@ void __interrupt(high_priority) handle_int(void)
         INTCONbits.T0IF = 0;
     }
 
-    if (PIR1bits.RCIF) {
+    if (PIE1bits.RCIE && PIR1bits.RCIF) {
         // Receive interrupt
         gps_proc_required = gps_handle_serial_rx();
     }
@@ -209,7 +208,7 @@ static void setup(void)
     SPBRG = 71; // Base frequency / (64 * (71 + 1)) = 4800 baud
 
     IPR1 = 0b00100000; // Serial RX is high priority
-    PIE1 = 0b00100000; // Serial RX interrupt enabled
+    PIE1 = 0b00000000; // Serial RX interrupt disabled (for now)
 
     // Timer and interrupt configuration
     T0CON = 0b10000010; // Timer0 enabled, 1:8 pre-scaler used
@@ -233,27 +232,6 @@ static void setup(void)
     dst_end.week = DST_END_WEEK;
     dst_end.day = DST_END_DAY;
     dst_end.hour = DST_END_HOUR;
-}
-
-
-// GPS setup process (interrupts should be enabled))
-static void gps_setup(void)
-{
-    // Reset the GPS to a known state
-    gps_init_reset1();
-
-    // Wait between sent messages
-    delay(2);
-
-    gps_init_reset2();
-
-    // Wait for received messages to stop
-    delay(2);
-
-    // Enable serial reception
-    RCSTAbits.CREN = 1;
-
-    gps_init_setup();
 }
 
 

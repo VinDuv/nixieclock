@@ -37,17 +37,23 @@ volatile enum {
 // GPS control messages:
 
 // Switch to binary mode
-static const char* gps_switch_to_bin = "$PSRF100,0,4800,8,1,0*0F\r\n\xff";
+static const char* gps_init_seq_data = (
+    // Initial wait
+    "\xfe\xfe\xfe\xfe\xfe\xfe"
+    // Switch to binary mode and wait
+    "$PSRF100,0,4800,8,1,0*0F\r\n\xfe"
+    // Disable all messages and wait
+    "\xa0\xa2\x00\x08\xa6\x02\x00\x00\x00\x00\x00\x00\x00\xa8\xb0\xb3\xfe"
+    // Enable the clock message (message 7) every 10 seconds
+    "\xa0\xa2\x00\x08\xa6\x00\x07\x0a\x00\x00\x00\x00\x00\xb7\xb0\xb3\xfe\xfe"
+    // Send the clock message (message 7) immediately and finish
+    "\xa0\xa2\x00\x02\x90\x00\x00\x90\xb0\xb3\xff"
+);
 
-// Disable all messages
-static const char* gps_disable_all_msgs =
-    "\xa0\xa2\x00\x08\xa6\x02\x00\x00\x00\x00\x00\x00\x00\xa8\xb0\xb3\xff";
 
-// Enable clock message (message 7) every 10 seconds
-static const char* gps_enable_clock_msg =
-    "\xa0\xa2\x00\x08\xa6\x00\x07\x0a\x00\x00\x00\x00\x00\xb7\xb0\xb3\xff";
-
-static void gps_send_seq(const char* seq);
+static void gps_send_init_seq(void);
+static inline uint8_t gps_wait_byte(void);
+static uint8_t gps_wait_msg(void);
 
 #ifdef GPS_HALT_ON_ERRORS
 #define GPS_SET_ERR(error) do { gps_status = error; for (;;) {} } while(0)
@@ -55,33 +61,80 @@ static void gps_send_seq(const char* seq);
 #define GPS_SET_ERR(error) do { gps_status = error; } while(0)
 #endif
 
-void gps_init_reset1(void)
+
+void gps_init(void)
 {
     gps_status = STATUS_UNSYNC;
     recv_state = RECEIVED_NOTHING;
 
-    gps_send_seq(gps_switch_to_bin);
+    // Send the initialization sequence
+    gps_send_init_seq();
+
+    // Wait for message 7
+    RCSTAbits.CREN = 1;
+    while (gps_wait_msg() != 7);
+
+    // Enable serial interrupt
+    PIE1bits.RCIE = 1;
 }
 
 
-void gps_init_reset2(void)
+// Send the initialization sequence to the GPS
+static void gps_send_init_seq(void)
 {
-    gps_send_seq(gps_disable_all_msgs);
-}
+    const char* seq = gps_init_seq_data;
+    uint8_t val;
 
-
-void gps_init_setup(void)
-{
-    gps_send_seq(gps_enable_clock_msg);
-}
-
-
-// Send a control message to the GPS
-static void gps_send_seq(const char* seq)
-{
-    for (; *seq != '\xff' ; seq += 1) {
+    for (val = *seq ; val != '\xff' ; val = *(++seq)) {
         while (TXSTAbits.TRMT == 0); // Wait for previous character to be sent
-        TXREG = *seq;
+        if (val == '\xfe') {
+            uint32_t wait = 0x1ffff;
+            while (--wait);
+        } else {
+            TXREG = val;
+        }
+    }
+}
+
+
+// Wait for a byte to be received on the serial, and return it.
+static inline uint8_t gps_wait_byte(void)
+{
+    while (!PIR1bits.RCIF);// Wait for a byte to be received
+
+    // Read and return the received byte
+    return RCREG;
+}
+
+
+// Wait for a binary message to be received on the serial. Return the message
+// type. Does not check message CRC or length.
+static uint8_t gps_wait_msg(void)
+{
+    uint8_t msg_type;
+
+    for (;;) {
+        if (gps_wait_byte() != '\xA0')
+            continue;
+
+        if (gps_wait_byte() != '\xA2')
+            continue;
+
+        // Receive the length
+        gps_wait_byte();
+        gps_wait_byte();
+
+        // Message type
+        msg_type = gps_wait_byte();
+
+        while (gps_wait_byte() != '\xB0') {
+            // Wait for message end
+        }
+
+        if (gps_wait_byte() != '\xB3')
+            continue;
+
+        return msg_type;
     }
 }
 

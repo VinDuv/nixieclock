@@ -19,17 +19,9 @@ enum gps_status_val {
 };
 extern enum gps_status_val gps_status;
 
-// First step of the GPS reset sequence; must be called a little bit before the
-// second reset step
-void gps_init_reset1(void);
-
-// Second step of the GPS reset sequence; must be called
-// a little bit before enabling serial reception
-void gps_init_reset2(void);
-
-// Enable the sending of clock messages from the GPS; the GPS must be reset
-// and the serial reception must be enabled beforehand
-void gps_init_setup(void);
+// Initialize the GPS receiver. The serial receive status and interrupt should
+// be disabled; they will be automatically enabled when this function returns.
+void gps_init(void);
 
 // Handle serial reception interrupt. Return true if a message is received.
 bool gps_handle_serial_rx(void);
