@@ -32,3 +32,10 @@ Click Make and program device in MPLAB X IDE. (If the clock is not powered, you
 may need to change the programmer’s settings to enable its +5V output).
 
 To change the DST settings, edit the settings.h file.
+
+References
+----------
+
+* [PIC 18F4420 Datasheet](https://ww1.microchip.com/downloads/en/DeviceDoc/39631E.pdf)
+* [NMEA Protocol](https://www.sparkfun.com/datasheets/GPS/NMEA%20Reference%20Manual-Rev2.1-Dec07.pdf)
+* [SiRF Binary Protocol](https://cdn.sparkfun.com/datasheets/Sensors/GPS/SiRF_Binary_Protocol.pdf)
