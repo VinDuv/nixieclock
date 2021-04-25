@@ -5,6 +5,7 @@
 #define GPS_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 // GPS sync status
 enum gps_status_val {
@@ -18,6 +19,10 @@ enum gps_status_val {
     STATUS_ERR_INVAL_MSG_TYPE = 7,  // Invalid message received from GPS (type)
 };
 extern enum gps_status_val gps_status;
+
+// Time received from GPS, in seconds * 100 from 1/1/1970 00:00:00 UTC
+// Updated when processing messages
+extern uint64_t gps_deciseconds;
 
 // Initialize the GPS receiver. The serial receive status and interrupt should
 // be disabled; they will be automatically enabled when this function returns.

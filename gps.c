@@ -13,6 +13,7 @@
 
 // Definition of extern variables
 enum gps_status_val gps_status;
+uint64_t gps_deciseconds;
 
 // Message payload buffer
 static char payload_buf[20];
@@ -69,6 +70,7 @@ void gps_init(void)
 {
     gps_status = STATUS_UNSYNC;
     recv_state = RECEIVED_NOTHING;
+    gps_deciseconds = 0;
 
     // Send the initialization sequence
     gps_send_init_seq();
@@ -268,6 +270,34 @@ void gps_process_received(void)
         GPS_SET_ERR(STATUS_ERR_INVAL_MSG_TYPE);
         return;
     }
+
+    uint16_t gps_week;
+    uint32_t gps_time_of_week;
+
+    gps_week = ((uint16_t)payload_buf[1] << 8) | (uint16_t)payload_buf[2];
+    gps_time_of_week = ((uint32_t)payload_buf[3] << 24) |
+            ((uint32_t)payload_buf[4] << 16) |
+            ((uint32_t)payload_buf[5] << 8) | (uint32_t)payload_buf[6];
+
+    if (gps_week <= 1711) {
+        // GPS time of 2012; seems to be returned before the GPS is synchronized
+        // FIXME: Find a better way to detect desynchronized GPS? The "SVs"
+        // info (byte 7 of the message payload) might indicate the number
+        // of satellites, but it seems to always be 0.
+        gps_status = STATUS_UNSYNC;
+        recv_state = RECEIVED_NOTHING;
+        return;
+    }
+
+    // There are 315964800 seconds between the UTC epoch 1/1/1970 and the
+    // GPS epoch 6/1/1980. However, there have been 18 leap seconds (so far)
+    // since the GPS epoch; UTC stands still during the leap second, but the
+    // GPS time does not, so we need to subtract the amount of leap seconds from
+    // the initial delta.
+    gps_deciseconds = 31596480000 - 1800 + ((uint64_t)gps_week * 60480000) +
+        (uint64_t)gps_time_of_week;
+
+    gps_status = STATUS_OK;
 
     recv_state = RECEIVED_NOTHING;
 }
