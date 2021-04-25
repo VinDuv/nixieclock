@@ -87,19 +87,21 @@ void main(void)
 
     gps_init();
 
-    for (uint8_t i = 0 ; i < 10 ; i += 1) {
-        disp_value.left_sep = i & 1;
-        disp_value.right_sep = i & 1;
-        disp_value.digit0 = i;
-        disp_value.digit1 = i;
-        disp_value.digit2 = i;
-        disp_value.digit3 = i;
-        disp_value.digit4 = i;
-        disp_value.digit5 = i;
+    do {
+        for (uint8_t i = 0 ; i < 10 ; i += 1) {
+            disp_value.left_sep = i & 1;
+            disp_value.right_sep = i & 1;
+            disp_value.digit0 = i;
+            disp_value.digit1 = i;
+            disp_value.digit2 = i;
+            disp_value.digit3 = i;
+            disp_value.digit4 = i;
+            disp_value.digit5 = i;
 
-        update_display();
-        delay(10);
-    }
+            update_display();
+            delay(10);
+        }
+    } while (gps_status != STATUS_OK);
 
     for (;;) {
         if (check_tick()) {
