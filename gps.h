@@ -26,6 +26,9 @@ void gps_init(void);
 // Handle serial reception interrupt. Return true if a message is received.
 bool gps_handle_serial_rx(void);
 
+// Handle a tick interrupt (used for timeout detection)
+void gps_handle_tick(void);
+
 // Process the received message.
 void gps_process_received(void);
 #endif

@@ -18,6 +18,9 @@ enum gps_status_val gps_status;
 static char payload_buf[20];
 static uint8_t payload_length;
 
+// Message timeout detection
+static uint8_t idle_ticks;
+
 // Receive progress
 static uint8_t recv_pos;
 static uint16_t calc_csum;
@@ -73,6 +76,8 @@ void gps_init(void)
     // Wait for message 7
     RCSTAbits.CREN = 1;
     while (gps_wait_msg() != 7);
+
+    idle_ticks = 0;
 
     // Enable serial interrupt
     PIE1bits.RCIE = 1;
@@ -142,6 +147,8 @@ static uint8_t gps_wait_msg(void)
 bool gps_handle_serial_rx(void)
 {
     char recv_byte = RCREG; // Receive the data and acknowledge the interrupt
+
+    idle_ticks = 0;
 
     if (gps_status >= STATUS_ERR_SERIAL) {
         // Do nothing if a error occurred, so it is visible to the user
@@ -229,6 +236,16 @@ bool gps_handle_serial_rx(void)
     }
 
     return false;
+}
+
+
+void gps_handle_tick(void)
+{
+    if (idle_ticks < 255) {
+        idle_ticks += 1;
+    } else if (gps_status < STATUS_ERR_NO_DATA) {
+        GPS_SET_ERR(STATUS_ERR_NO_DATA);
+    }
 }
 
 

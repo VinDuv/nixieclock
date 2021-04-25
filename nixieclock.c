@@ -128,6 +128,8 @@ void __interrupt(high_priority) handle_int(void)
         }
         tick_happened = true;
 
+        gps_handle_tick();
+
         // Acknowledge the interrupt
         INTCONbits.T0IF = 0;
     }
