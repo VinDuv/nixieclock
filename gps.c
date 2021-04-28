@@ -16,7 +16,7 @@ enum gps_status_val gps_status;
 uint64_t gps_deciseconds;
 
 // Message payload buffer
-static char payload_buf[20];
+static char payload_buf[150];
 static uint8_t payload_length;
 
 // Message timeout detection
@@ -258,13 +258,27 @@ void gps_process_received(void)
     if (recv_state != RECEIVE_DONE)
         return;
 
-    if (payload_buf[0] == 11) {
+    if ((payload_buf[0] == 11) && (payload_length == 3)) {
         // Message 11: acknowledgment of command -- ignored
         recv_state = RECEIVED_NOTHING;
         return;
     }
 
-    if (payload_buf[0] != 7) {
+    if ((payload_buf[0] == 225) && (payload_length == 39)) {
+        // Message 225: statistics channel -- ignored
+        // FIXME find how to disable this message (is debug correctly disabled?)
+        recv_state = RECEIVED_NOTHING;
+        return;
+    }
+
+    if (payload_buf[0] == 93) {
+        // Message 93: ??? (the payload length seems to vary; seen 17 and 150)
+        // FIXME find how to disable this message (is debug correctly disabled?)
+        recv_state = RECEIVED_NOTHING;
+        return;
+    }
+
+    if ((payload_buf[0] != 7) | (payload_length != 20)) {
         // Unexpected message
 
         GPS_SET_ERR(STATUS_ERR_INVAL_MSG_TYPE);
