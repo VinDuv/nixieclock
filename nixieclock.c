@@ -154,18 +154,34 @@ static bool check_tick(void)
 
     process_gps = gps_proc_required;
     gps_proc_required = false;
-    if (!tick_happened) {
+    if (!tick_happened && !process_gps) {
         INTCONbits.GIEH = 1;
-
-        if (process_gps) {
-            gps_process_received();
-        }
-
         return false;
     }
 
     if (process_gps) {
+        // Allow ticks during GPS calculations
+        INTCONbits.GIEH = 1;
+
         gps_process_received();
+
+        uint64_t local_days = gps_deciseconds / 8640000;
+        uint64_t local_decisecs = gps_deciseconds % 8640000;
+        uint64_t local_ticks = TICKS_PER_DAY * local_decisecs / 8640000;
+        uint64_t local_timer = (local_decisecs % 8640000) * 65536 / 8640000;
+
+        INTCONbits.GIEH = 0;
+
+        if (gps_status == STATUS_OK) {
+            // Prevent the timer from immediately generating a tick
+            TMR0H = 0;
+
+            cur_days = (uint16_t)local_days;
+            cur_ticks = (uint32_t)local_ticks;
+
+            TMR0L = local_timer & 0xFF;
+            TMR0H = (local_timer >> 8) & 0xFF;
+        }
     }
 
     // Convert ticks to days and seconds
