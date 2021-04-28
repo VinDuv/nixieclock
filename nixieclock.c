@@ -107,6 +107,7 @@ void main(void)
         if (check_tick()) {
             disp_cur_time();
         }
+        Sleep();
     }
 }
 
@@ -207,8 +208,8 @@ static void setup(void)
     // Disable interrupts during setup
     INTCON = 0b00000000;
 
-    // Configure the use of external oscillator
-    OSCCON = 0b00000000;
+    // Configure the use of external oscillator; sleep does not disable timers
+    OSCCON = 0b10000000;
 
     // Analog/digital pin configuration: all digital
     ADCON0 = 0b00000000;
