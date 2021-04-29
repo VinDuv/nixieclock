@@ -300,14 +300,29 @@ static void update_display(void)
 // Display the current time.
 static void disp_cur_time(void)
 {
-    disp_value.left_sep = disp_value.right_sep = local_time.second & 1;
+    // Between 2:00:00 and 3:00:00, display all digits sequentially
+    // This helps preventing cathode poisoning
+    if (local_time.hour == 2) {
+        uint8_t val = cur_ticks % 10;
 
-    disp_value.digit0 = local_time.hour / 10;
-    disp_value.digit1 = local_time.hour % 10;
-    disp_value.digit2 = local_time.minute / 10;
-    disp_value.digit3 = local_time.minute % 10;
-    disp_value.digit4 = local_time.second / 10;
-    disp_value.digit5 = local_time.second % 10;
+        disp_value.left_sep = 0;
+        disp_value.right_sep = 0;
 
+        disp_value.digit0 = val;
+        disp_value.digit1 = val;
+        disp_value.digit2 = val;
+        disp_value.digit3 = val;
+        disp_value.digit4 = val;
+        disp_value.digit5 = val;
+    } else {
+        disp_value.left_sep = disp_value.right_sep = local_time.second & 1;
+
+        disp_value.digit0 = local_time.hour / 10;
+        disp_value.digit1 = local_time.hour % 10;
+        disp_value.digit2 = local_time.minute / 10;
+        disp_value.digit3 = local_time.minute % 10;
+        disp_value.digit4 = local_time.second / 10;
+        disp_value.digit5 = local_time.second % 10;
+    }
     update_display();
 }
