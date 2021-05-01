@@ -101,7 +101,7 @@ void main(void)
             update_display();
             delay(10);
         }
-    } while (gps_status != STATUS_OK);
+    } while (!gps_is_sync);
 
     for (;;) {
         if (check_tick()) {
@@ -315,7 +315,10 @@ static void disp_cur_time(void)
         disp_value.digit4 = val;
         disp_value.digit5 = val;
     } else {
-        disp_value.left_sep = disp_value.right_sep = local_time.second & 1;
+        bool separator_status = local_time.second & 1;
+
+        disp_value.left_sep = separator_status && (gps_status == STATUS_OK);
+        disp_value.right_sep = separator_status && gps_is_sync;
 
         disp_value.digit0 = local_time.hour / 10;
         disp_value.digit1 = local_time.hour % 10;

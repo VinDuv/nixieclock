@@ -13,6 +13,7 @@
 
 // Definition of extern variables
 enum gps_status_val gps_status;
+bool gps_is_sync;
 uint64_t gps_deciseconds;
 
 // Message payload buffer
@@ -21,6 +22,9 @@ static uint8_t payload_length;
 
 // Message timeout detection
 static uint8_t idle_ticks;
+
+// Error reset timer counter
+static uint8_t error_reset_count;
 
 // Receive progress
 static uint8_t recv_pos;
@@ -68,7 +72,9 @@ static uint8_t gps_wait_msg(void);
 
 void gps_init(void)
 {
-    gps_status = STATUS_UNSYNC;
+    gps_status = STATUS_OK;
+    gps_is_sync = false;
+    error_reset_count = 0;
     recv_state = RECEIVED_NOTHING;
     gps_deciseconds = 0;
 
@@ -151,11 +157,6 @@ bool gps_handle_serial_rx(void)
     char recv_byte = RCREG; // Receive the data and acknowledge the interrupt
 
     idle_ticks = 0;
-
-    if (gps_status >= STATUS_ERR_SERIAL) {
-        // Do nothing if a error occurred, so it is visible to the user
-        return false;
-    }
 
     if (RCSTAbits.FERR || RCSTAbits.OERR) {
         GPS_SET_ERR(STATUS_ERR_SERIAL);
@@ -285,6 +286,16 @@ void gps_process_received(void)
         return;
     }
 
+    if (gps_status != STATUS_OK) {
+        // Reset the GPS error status after 255 successful receives
+
+        error_reset_count += 1;
+        if (error_reset_count == 255) {
+            gps_status = STATUS_OK;
+            error_reset_count = 0;
+        }
+    }
+
     uint16_t gps_week;
     uint32_t gps_time_of_week;
 
@@ -298,7 +309,7 @@ void gps_process_received(void)
         // FIXME: Find a better way to detect desynchronized GPS? The "SVs"
         // info (byte 7 of the message payload) might indicate the number
         // of satellites, but it seems to always be 0.
-        gps_status = STATUS_UNSYNC;
+        gps_is_sync = false;
         recv_state = RECEIVED_NOTHING;
         return;
     }
@@ -311,7 +322,7 @@ void gps_process_received(void)
     gps_deciseconds = 31596480000 - 1800 + ((uint64_t)gps_week * 60480000) +
         (uint64_t)gps_time_of_week;
 
-    gps_status = STATUS_OK;
+    gps_is_sync = true;
 
     recv_state = RECEIVED_NOTHING;
 }

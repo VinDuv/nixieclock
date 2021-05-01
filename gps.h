@@ -7,18 +7,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// GPS sync status
+// GPS error and sync status
 enum gps_status_val {
-    STATUS_OK = 0,                  // GPS is synchronized
-    STATUS_UNSYNC = 1,              // GPS not synchronized
-    STATUS_ERR_NO_DATA = 2,         // GPS module not responding
-    STATUS_ERR_SERIAL = 3,          // Serial I/O communication error
-    STATUS_ERR_OVERFLOW = 4,        // Input message buffer overflow
-    STATUS_ERR_INVAL_MSG_SEQ = 5,   // Invalid message received from GPS (seq)
-    STATUS_ERR_INVAL_MSG_CSUM = 6,  // Invalid message received from GPS (csum)
-    STATUS_ERR_INVAL_MSG_TYPE = 7,  // Invalid message received from GPS (type)
+    STATUS_OK = 0,                  // GPS communication OK
+    STATUS_ERR_NO_DATA = 1,         // GPS module not responding
+    STATUS_ERR_SERIAL = 2,          // Serial I/O communication error
+    STATUS_ERR_OVERFLOW = 3,        // Input message buffer overflow
+    STATUS_ERR_INVAL_MSG_SEQ = 4,   // Invalid message received from GPS (seq)
+    STATUS_ERR_INVAL_MSG_CSUM = 5,  // Invalid message received from GPS (csum)
+    STATUS_ERR_INVAL_MSG_TYPE = 6,  // Invalid message received from GPS (type)
 };
 extern enum gps_status_val gps_status;
+extern bool gps_is_sync;
 
 // Time received from GPS, in seconds * 100 from 1/1/1970 00:00:00 UTC
 // Updated when processing messages
